@@ -12,7 +12,9 @@ export const videoSchema = z.object({
   seoKeywords: z.string().max(255).optional().nullable(),
   seoIndex: z.boolean().default(true),
   seoFollow: z.boolean().default(true),
-  canonicalUrl: z.string().url().optional().nullable(),
+  canonicalUrl: z.string().nullable().refine((val) => !val || z.string().url().safeParse(val).success, {
+    message: 'Invalid URL',
+  }).optional(),
   
   status: z.enum(['DRAFT', 'PUBLISHED', 'SCHEDULED']).default('DRAFT'),
   publishedAt: z.string().datetime().optional().nullable(),

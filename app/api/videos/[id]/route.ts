@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { videoUpdateSchema } from '@/lib/validations/video';
 import { generateUniqueSlug } from '@/lib/slug';
-import { VideoStatus } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -115,38 +115,11 @@ export async function PUT(
 
     const { tagIds, categoryIds, publishedAt, ...videoData } = data;
 
-    interface UpdateData {
-      title?: string;
-      content?: string;
+    type VideoUpdateData = Prisma.VideoUpdateInput & {
       slug: string;
-      iframeUrl?: string;
-      seoTitle?: string | null;
-      seoDescription?: string | null;
-      seoKeywords?: string | null;
-      seoIndex?: boolean;
-      seoFollow?: boolean;
-      canonicalUrl?: string | null;
-      status?: VideoStatus;
-      publishedAt?: Date | null;
-      tags?: {
-        deleteMany: Record<string, never>;
-        create: Array<{
-          tag: {
-            connect: { id: string };
-          };
-        }>;
-      };
-      categories?: {
-        deleteMany: Record<string, never>;
-        create: Array<{
-          category: {
-            connect: { id: string };
-          };
-        }>;
-      };
-    }
+    };
 
-    const updateData: UpdateData = {
+    const updateData: VideoUpdateData = {
       ...videoData,
       slug,
     };

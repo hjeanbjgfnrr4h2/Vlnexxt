@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 
 const thumbnailSchema = z.object({
   thumbnailOriginal: z.string().optional().nullable(),
@@ -41,21 +42,16 @@ export async function POST(
 
     const data = validation.data;
 
-    if (!data.thumbnailOriginal && !data.thumbnailLarge && !data.thumbnailMedium && 
-        !data.thumbnailSmall && !data.thumbnailLazy) {
+    if (!Object.values(data).some(value => value !== undefined)) {
       return NextResponse.json(
         { error: 'At least one thumbnail field is required' },
         { status: 400 }
       );
     }
 
-    interface ThumbnailUpdateData {
-      thumbnailOriginal?: string | null;
-      thumbnailLarge?: string | null;
-      thumbnailMedium?: string | null;
-      thumbnailSmall?: string | null;
-      thumbnailLazy?: string | null;
-    }
+    type ThumbnailUpdateData = Pick<Prisma.VideoUpdateInput, 
+      'thumbnailOriginal' | 'thumbnailLarge' | 'thumbnailMedium' | 'thumbnailSmall' | 'thumbnailLazy'
+    >;
 
     const updateData: ThumbnailUpdateData = {};
     
