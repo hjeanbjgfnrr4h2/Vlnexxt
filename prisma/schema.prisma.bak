@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Videos Table
+model Video {
+  id                  String   @id @default(cuid())
+  title               String   @db.Text
+  content             String   @db.Text   
+  slug                String   @unique
+  iframeUrl           String   @map("iframe_url")
+  
+  // Thumbnails with multiple sizes (4:3 ratio)
+  thumbnailOriginal   String   @db.Text?  @map("thumbnail_original")
+  thumbnailLarge      String   @db.Text?  @map("thumbnail_large")   // 800x600
+  thumbnailMedium     String   @db.Text?  @map("thumbnail_medium")  // 400x300
+  thumbnailSmall      String   @db.Text?  @map("thumbnail_small")   // 200x150
+  thumbnailLazy       String   @db.Text?  @map("thumbnail_lazy")    // 20x15 (blur placeholder)
+  
+  // SEO Fields
+  seoTitle            String   @db.Text?  @map("seo_title")
+  seoDescription      String   @db.Text?  @map("seo_description")
+  seoKeywords         String   @db.Text?  @map("seo_keywords")
+  seoIndex            Boolean  @default(true) @map("seo_index")
+  seoFollow           Boolean  @default(true) @map("seo_follow")
+  canonicalUrl        String   @db.Text?  @map("canonical_url")
+  
+  viewCount           Int      @default(0) @map("view_count")
+  status              VideoStatus @default(DRAFT)
+  publishedAt         DateTime? @map("published_at")
+  
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  tags                VideoTag[]
+  categories          VideoCategory[]
+  
+  @@index([slug])
+  @@index([status])
+  @@index([publishedAt])
+  @@map("videos")
+}
+
+enum VideoStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+}
+
+// Tags Table
+model Tag {
+  id              String   @id @default(cuid())
+  name            String   @db.Text
+  slug            String   @unique
+  content         String   @db.Text?  
+  
+  // SEO Fields
+  seoTitle        String   @db.Text?  @map("seo_title")
+  seoDescription  String   @db.Text?  @map("seo_description")
+  seoIndex        Boolean  @default(true) @map("seo_index")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  videos          VideoTag[]
+  
+  @@index([slug])
+  @@map("tags")
+}
+
+// Categories Table
+model Category {
+  id              String   @id @default(cuid())
+  parentId        String   @db.Text?  @map("parent_id")
+  name            String   @db.Text
+  slug            String   @unique
+  content         String   @db.Text?  
+  thumbnail       String   @db.Text?
+  
+  // SEO Fields
+  seoTitle        String   @db.Text?  @map("seo_title")
+  seoDescription  String   @db.Text?  @map("seo_description")
+  seoIndex        Boolean  @default(true) @map("seo_index")
+  
+  sortOrder       Int      @default(0) @map("sort_order")
+  
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  parent          Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: Cascade)
+  children        Category[] @relation("CategoryToCategory")
+  videos          VideoCategory[]
+  
+  @@index([slug])
+  @@index([parentId])
+  @@index([sortOrder])
+  @@map("categories")
+}
+
+// Many-to-Many: Video <-> Tag
+model VideoTag {
+  videoId   String   @map("video_id")
+  tagId     String   @map("tag_id")
+  
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  
+  @@id([videoId, tagId])
+  @@map("video_tag")
+}
+
+// Many-to-Many: Video <-> Category
+model VideoCategory {
+  videoId     String   @map("video_id")
+  categoryId  String   @map("category_id")
+  
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@id([videoId, categoryId])
+  @@map("video_category")
+}
+
+// Menus Table
+model Menu {
+  id        String   @db.Text     @id @default(cuid())
+  name      String   @db.Text
+  location  MenuLocation
+  
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  
+  items     MenuItem[]
+  
+  @@unique([location])
+  @@map("menus")
+}
+
+enum MenuLocation {
+  HEADER
+  FOOTER
+  SIDEBAR
+}
+
+// Menu Items Table
+model MenuItem {
+  id           String   @id @default(cuid())
+  menuId       String   @map("menu_id")
+  parentId     String   @db.Text?  @map("parent_id")
+  title        String   @db.Text
+  url          String   @db.Text?
+  target       String   @db.Text?  @default("_self")
+  icon         String   @db.Text?
+  linkableType String   @db.Text?  @map("linkable_type") // "category", "tag", "video", "custom"
+  linkableId   String   @db.Text?  @map("linkable_id")
+  sortOrder    Int      @default(0) @map("sort_order")
+  depth        Int      @default(0)
+  
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  menu         Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent       MenuItem? @relation("MenuItemToMenuItem", fields: [parentId], references: [id], onDelete: Cascade)
+  children     MenuItem[] @relation("MenuItemToMenuItem")
+  
+  @@index([menuId])
+  @@index([parentId])
+  @@index([sortOrder])
+  @@map("menu_items")
+}
+
+// Settings Table
+model Setting {
+  id          String   @id @default(cuid())
+  group       String   @db.Text
+  key         String   @db.Text
+  value       String   @db.Text?  
+  type        SettingType
+  options     String   @db.Text?   // JSON string for select options
+  label       String   @db.Text
+  description String   @db.Text?
+  sortOrder   Int      @default(0) @map("sort_order")
+  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@unique([group, key])
+  @@index([group])
+  @@map("settings")
+}
+
+enum SettingType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  BOOLEAN
+  SELECT
+  FILE
+  COLOR
+  JSON
+}
